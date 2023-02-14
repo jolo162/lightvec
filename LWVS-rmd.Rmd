@@ -1,0 +1,75 @@
+---
+title: "LWVS-TimeSeriesForecasting"
+author: "JohnLo"
+date: "2022-11-04"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(fpp2)
+library(tseries)
+library(forecast)
+```
+
+```{r}
+LWVS <- read_csv("LWVS.csv")
+tsdata_LWVS <- ts(LWVS[,-1], start = c(1976,1), end = c(2022,9), frequency = 12)
+
+autoplot(tsdata_LWVS, main = "Light Weight Vehicle Sales from Jan-1976 to Sep-2022", ylab = "Thousands of Unit, ('000)", xlab = "Time")
+ggtsdisplay(tsdata_LWVS) 
+```
+
+```{r}
+#no. of recommended first difference
+ndiffs(tsdata_LWVS)
+nsdiffs(tsdata_LWVS)
+
+sdiff.LWVS <- diff(tsdata_LWVS, 12)
+ggtsdisplay(sdiff.LWVS)
+#shows mean reverting behaviour. constant mean, constant variance
+#ACF: shows geometric decay patterns, suggest AR model
+#PACF: cuts-off at lag 3. seasonal cuts-off at lag12,24,36 -> shows seasonal AR model at P=1,2,3
+#first ARIMA model is ARIMA(3,0,0)(3,1,0)
+
+
+nsdiffs(sdiff.LWVS)
+ndiffs(sdiff.LWVS)
+```
+
+```{r}
+#suggested models
+LWVS_arima300310 <- Arima(tsdata_LWVS, order = c(3,0,0), seasonal = c(3,1,0))
+LWVS_arima300310 #AIC:6683.63, loglikelihood=3334.82
+
+LWVS_arima200310 <- Arima(tsdata_LWVS, order = c(2,0,0), seasonal = c(3,1,0))
+LWVS_arima200310 #AIC:6708.77, loglikelihood=3348.38
+
+LWVS_arima202313 <- Arima(tsdata_LWVS, order = c(2,0,2), seasonal = c(3,1,3))
+LWVS_arima202313 #AIC: 6620.70
+
+LWVS_arima102313 <- Arima(tsdata_LWVS, order = c(1,0,2), seasonal = c(3,1,3))
+LWVS_arima102313 #AIC:6604.08, is the lowest among all SARIMA models. loglikelihod=3292.04
+
+LWVS_arima102312 <- Arima(tsdata_LWVS, order = c(1,0,2), seasonal = c(3,1,2))
+LWVS_arima102312 #AIC: 6626.75, loglikelihood=3304.38
+
+LWVS_arima201212 <- Arima(tsdata_LWVS, order = c(2,0,1), seasonal = c(2,1,2))
+LWVS_arima201212 #AIC: 6628.06, loglikelihood=3306.03
+```
+
+```{r}
+checkresiduals(LWVS_arima102313)
+#lag23 is significant
+
+forecast(LWVS_arima102313, h = 36)
+autoplot(forecast(LWVS_arima102313, h = 36))
+```
+
